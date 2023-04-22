@@ -1,0 +1,38 @@
+- name: Export NODE_ID
+  ansible.builtin.command: docker info -f '{{'{{'}}.Swarm.NodeID{{'}}'}}'
+  register: NODE_ID
+  changed_when: true
+
+- name: Docker node update label db-data
+  ansible.builtin.command: docker node update --label-add swarmpit.db-data=true {{ NODE_ID.stdout }}
+  changed_when: true
+
+- name: Docker node update label influx-data
+  ansible.builtin.command: docker node update --label-add swarmpit.influx-data=true {{ NODE_ID.stdout }}
+  changed_when: true
+
+- name: Services directory
+  ansible.builtin.file:
+    path: /root/services/
+    state: directory
+    mode: '744'
+
+- name: Copy swarmpit
+  ansible.builtin.copy:
+    src: swarmpit
+    dest: /root/services/
+    owner: root
+    group: root
+    mode: '744'
+
+- name: Install pip dependencies
+  ansible.builtin.pip:
+    name:
+      - jsondiff
+
+- name: Deploy swarmpit stack
+  community.docker.docker_stack:
+    state: present
+    name: swarmpit
+    compose:
+      - /root/services/swarmpit/swarmpit.yml
